@@ -1,0 +1,31 @@
+{% load staticfiles %}
+{% load change_form %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="{% static "stark/bootstrap/css/bootstrap.css" %}"/>
+    <link rel="stylesheet" href="{% static "stark/css/stark-form.css" %}"/>
+    <style>
+        #dic_item {
+            float: left;
+            padding-right: 20px;
+        }
+
+        .dic_is_popup {
+            padding-top: 8px;
+{#            float: right;#}
+        }
+
+
+    </style>
+
+</head>
+<body>
+<div class="container">
+    <h1>添加页面</h1>
+    {% form form %}
+</div>
+</body>
+</html>
