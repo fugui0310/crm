@@ -10,7 +10,6 @@ from django.utils.safestring import mark_safe
 from django.urls import reverse
 from django.http import QueryDict
 from django.db.models import Q
-from page.pager import Pagination
 
 
 class FilterOption(object):
@@ -124,7 +123,7 @@ class ChangeList(object):
         self.show_search_form = config.get_show_search_form()
         self.search_form_val = config.request.GET.get(config.search_key, '')
 
-
+        from page.pager import Pagination
         current_page = self.request.GET.get('page', 1)
         total_count = queryset.count()
         page_obj = Pagination(current_page, total_count, self.request.path_info, self.request.GET)
@@ -235,7 +234,7 @@ class StarkConfig(object):
 
         ....
 
-    v1.site.register(models.UserInfo,UserInfoConfig)
+    router.site.register(models.UserInfo,UserInfoConfig)
     """
 
     # 1. 定制列表页面显示的列
@@ -439,12 +438,11 @@ class StarkConfig(object):
                 if option.field_name == key:
                     flag = True
                     break
-
             if flag:
                 comb_condition["%s__in" % key] = value_list
-        print(comb_condition)
+        # print(comb_condition)
         queryset = self.model_class.objects.filter(self.get_search_condition()).filter(**comb_condition).distinct()
-        print(queryset.query)
+        # print(queryset.query)
 
         cl = ChangeList(self, queryset)
         return render(request, 'changelist.html', {'cl': cl})
@@ -455,7 +453,7 @@ class StarkConfig(object):
         _popbackid = request.GET.get('_popbackid')
         if request.method == "GET":
             form = model_form_class()
-            return render(request, 'add_view.html', {'form': form})
+            return render(request, 'add_view.html', {'form': form, 'config': self})
         else:
             form = model_form_class(request.POST)
             if form.is_valid():
@@ -464,12 +462,35 @@ class StarkConfig(object):
                 if _popbackid:
                     # 是popup请求
                     # render一个页面，写自执行函数
-                    result = {'id': new_obj.pk, 'text': str(new_obj), 'popbackid': _popbackid}
+                    # popUp('/stark/crm/userinfo/add/?_popbackid=id_consultant&model_name=customer&related_name=consultant')
+                    from django.db.models.fields.reverse_related import ManyToOneRel, ManyToManyRel
+                    result = {'status': False, 'id': None, 'text': None, 'popbackid': _popbackid}
+
+                    model_name = request.GET.get('model_name')  # customer
+                    related_name = request.GET.get('related_name')  # consultant, "None"
+                    for related_object in new_obj._meta.related_objects:
+                        _model_name = related_object.field.model._meta.model_name
+                        _related_name = related_object.related_name
+                        if (type(related_object) == ManyToOneRel):
+                            _field_name = related_object.field_name
+                        else:
+                            _field_name = 'pk'
+                        _limit_choices_to = related_object.limit_choices_to
+                        if model_name == _model_name and related_name == str(_related_name):
+                            is_exists = self.model_class.objects.filter(**_limit_choices_to, pk=new_obj.pk).exists()
+                            if is_exists:
+                                # 如果新创建的用户时，销售部的人，页面才增加
+                                # 分门别类做判断：
+                                result['status'] = True
+                                result['text'] = str(new_obj)
+                                result['id'] = getattr(new_obj, _field_name)
+                                return render(request, 'popup_response.html',
+                                              {'json_result': json.dumps(result, ensure_ascii=False)})
                     return render(request, 'popup_response.html',
                                   {'json_result': json.dumps(result, ensure_ascii=False)})
                 else:
                     return redirect(self.get_list_url())
-            return render(request, 'add_view.html', {'form': form})
+            return render(request, 'add_view.html', {'form': form, 'config': self})
 
     def change_view(self, request, nid, *args, **kwargs):
         # self.model_class.objects.filter(id=nid)
@@ -481,7 +502,7 @@ class StarkConfig(object):
         # GET,显示标签+默认值
         if request.method == 'GET':
             form = model_form_class(instance=obj)
-            return render(request, 'change_view.html', {'form': form})
+            return render(request, 'change_view.html', {'form': form, 'config': self})
         else:
             form = model_form_class(instance=obj, data=request.POST)
             if form.is_valid():
@@ -489,7 +510,7 @@ class StarkConfig(object):
                 list_query_str = request.GET.get(self._query_param_key)
                 list_url = "%s?%s" % (self.get_list_url(), list_query_str,)
                 return redirect(list_url)
-            return render(request, 'change_view.html', {'form': form})
+            return render(request, 'change_view.html', {'form': form,'config': self})
 
     def delete_view(self, request, nid, *args, **kwargs):
         self.model_class.objects.filter(pk=nid).delete()

@@ -7,6 +7,7 @@ from django.shortcuts import redirect, HttpResponse
 
 class DepartmentConfig(router.StarkConfig):
     list_display = ['id', 'title', 'code']
+    edit_link = ['title', ]
 
 
 router.site.register(models.Department, DepartmentConfig)
@@ -35,6 +36,7 @@ class UserInfoConfig(router.StarkConfig):
 
     actions = [multi_del, multi_init]
     list_display = ['id', 'username', 'email', 'depart']
+    edit_link = ['username', ]
 
 
 router.site.register(models.UserInfo, UserInfoConfig)
@@ -42,6 +44,7 @@ router.site.register(models.UserInfo, UserInfoConfig)
 
 class CourseConfig(router.StarkConfig):
     list_display = ['id', 'name', ]
+    edit_link = ['name', ]
 
 
 router.site.register(models.Course, CourseConfig)
@@ -50,12 +53,36 @@ router.site.register(models.Course, CourseConfig)
 class SchoolConfig(router.StarkConfig):
     list_display = ['id', 'title']
 
+    edit_link = ['title', ]
+
 
 router.site.register(models.School, SchoolConfig)
 
 
 class ClassListConfig(router.StarkConfig):
-    list_display = ['id', 'school', 'course', 'semester', 'price', 'start_date', 'graduate_date', 'tutor']
+    def course_semester(self, obj=None, is_header=False):
+        if is_header:
+            return '班级'
+
+        return "%s(%s期)" % (obj.course.name, obj.semester,)
+
+    def num(self, obj=None, is_header=False):
+        if is_header:
+            return '人数'
+        # obj是班级对象
+        # 学生和班级的关系 M2M
+        # ############## 作业1：列举班级的人数 #############
+        # ############## 作业2：组合搜索（校区、课程） #############
+        # ############## 作业3：popup增加时，是否将新增的数据显示到页面中（获取条件） #############
+
+        return obj.student_set.count()
+
+    list_display = ['school', course_semester, num, 'start_date']
+    edit_link = [course_semester, ]
+    comb_filter = [
+        router.FilterOption('school'),
+        router.FilterOption('course'),
+    ]
 
 
 router.site.register(models.ClassList, ClassListConfig)
@@ -160,15 +187,68 @@ class ConsultRecordConfig(router.StarkConfig):
         router.FilterOption('customer')
     ]
 
-    def changelist_view(self, request, *args, **kwargs):
-        customer = request.GET.get('customer')
-        # session中获取当前用户ID
-        current_login_user_id = 1
-        ct = models.Customer.objects.filter(consultant=current_login_user_id, id=customer).count()
-        if not ct:
-            return HttpResponse('别抢客户呀...')
-
-        return super(ConsultRecordConfig, self).changelist_view(request, *args, **kwargs)
-
-
+    # def changelist_view(self, request, *args, **kwargs):
+    #     customer = request.GET.get('customer')
+    #     # session中获取当前用户ID
+    #     current_login_user_id = 0
+    #     ct = models.Customer.objects.filter(consultant=current_login_user_id, id=customer).count()
+    #     if not ct:
+    #         return HttpResponse('别抢客户呀...')
+    #
+    #     return super(ConsultRecordConfig, self).changelist_view(request, *args, **kwargs)
+    edit_link = ['customer']
 router.site.register(models.ConsultRecord, ConsultRecordConfig)
+
+
+class StudentConfig(router.StarkConfig):
+    def course_semester(self, obj=None, is_header=False):
+        if is_header:
+            return '班级'
+        return obj.class_list.first()
+
+    list_display = ['customer', 'username', course_semester]
+    edit_link = ['username']
+
+
+router.site.register(models.Student, StudentConfig)
+
+
+class PaymentRecordConfig(router.StarkConfig):
+    list_display = ['customer']
+    edit_link = ['customer']
+
+
+router.site.register(models.PaymentRecord, PaymentRecordConfig)
+
+
+class CourseRecordConfig(router.StarkConfig):
+    show_actions = True
+
+    def multi_del(self, request):
+        pk_list = request.POST.getlist('pk')
+        self.model_class.objects.filter(id__in=pk_list).delete()
+        # return HttpResponse('删除成功')
+        return redirect(self.get_list_url())
+
+    multi_del.short_desc = "批量删除"
+
+    def multi_init(self, request):
+        pk_list = request.POST.getlist('pk')
+
+    multi_init.short_desc = "初始化"
+
+    actions = [multi_del, multi_init]
+
+    list_display = ['class_obj','day_num','teacher','date','course_title']
+    edit_link = ['class_obj']
+
+
+router.site.register(models.CourseRecord, CourseRecordConfig)
+
+
+class StudyRecordConfig(router.StarkConfig):
+    list_display = ['course_record', ]
+    edit_link = ['course_record']
+
+
+router.site.register(models.StudyRecord, StudyRecordConfig)

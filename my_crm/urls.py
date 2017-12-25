@@ -17,6 +17,6 @@ from django.conf.urls import url
 from django.contrib import admin
 from stark.service import router
 urlpatterns = [
-    # url(r'^admin/', admin.site.urls),
+    url(r'^admin/', admin.site.urls),
     url(r'^stark/', router.site.urls),
 ]
