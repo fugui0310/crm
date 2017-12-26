@@ -2,7 +2,8 @@ from stark.service import router
 from crm import models
 from django.utils.safestring import mark_safe
 from django.conf.urls import url
-from django.shortcuts import redirect, HttpResponse
+from django.shortcuts import redirect, HttpResponse, render
+from crm.configs.student import StudentConfig
 
 
 class DepartmentConfig(router.StarkConfig):
@@ -197,18 +198,19 @@ class ConsultRecordConfig(router.StarkConfig):
     #
     #     return super(ConsultRecordConfig, self).changelist_view(request, *args, **kwargs)
     edit_link = ['customer']
+
+
 router.site.register(models.ConsultRecord, ConsultRecordConfig)
 
-
-class StudentConfig(router.StarkConfig):
-    def course_semester(self, obj=None, is_header=False):
-        if is_header:
-            return '班级'
-        return obj.class_list.first()
-
-    list_display = ['customer', 'username', course_semester]
-    edit_link = ['username']
-
+# class StudentConfig(router.StarkConfig):
+#     def course_semester(self, obj=None, is_header=False):
+#         if is_header:
+#             return '班级'
+#         return obj.class_list.first()
+#
+#     list_display = ['customer', 'username', course_semester]
+#     edit_link = ['username']
+#
 
 router.site.register(models.Student, StudentConfig)
 
@@ -222,32 +224,169 @@ router.site.register(models.PaymentRecord, PaymentRecordConfig)
 
 
 class CourseRecordConfig(router.StarkConfig):
-    show_actions = True
+    def extra_url(self):
+        app_model_name = (self.model_class._meta.app_label, self.model_class._meta.model_name,)
+        url_list = [
+            url(r'^(\d+)/score_list/$', self.wrap(self.score_list), name="%s_%s_score_list" % app_model_name),
+        ]
+        return url_list
 
-    def multi_del(self, request):
-        pk_list = request.POST.getlist('pk')
-        self.model_class.objects.filter(id__in=pk_list).delete()
-        # return HttpResponse('删除成功')
-        return redirect(self.get_list_url())
+    def score_list(self, request, record_id):
+        """
+        :param request:
+        :param record_id:老师上课记录ID
+        :return:
+        """
+        if request.method == "GET":
+            # 方式一
+            # study_record_list = models.StudyRecord.objects.filter(course_record_id=record_id)
+            # score_choices = models.StudyRecord.score_choices
+            # return render(request,'score_list.html',{'study_record_list':study_record_list,'score_choices':score_choices})
+            # 方式二
+            from django.forms import Form
+            from django.forms import fields
+            from django.forms import widgets
 
-    multi_del.short_desc = "批量删除"
+            # class TempForm(Form):
+            #     score = fields.ChoiceField(choices=models.StudyRecord.score_choices)
+            #     homework_note = fields.CharField(widget=widgets.Textarea())
+
+            data = []
+            study_record_list = models.StudyRecord.objects.filter(course_record_id=record_id)
+            # print(study_record_list)
+            for obj in study_record_list:
+                # obj是对象
+                TempForm = type('TempForm', (Form,), {
+                    'score_%s' % obj.pk: fields.ChoiceField(choices=models.StudyRecord.score_choices),
+                    'homework_note_%s' % obj.pk: fields.CharField(widget=widgets.Textarea(attrs={'cols': 50, 'rows': 10,'style':"margin: 0px; height: 30px; width: 500px;"}),)
+                })
+                data.append({'obj': obj, 'form': TempForm(
+                    initial={'score_%s' % obj.pk: obj.score, 'homework_note_%s' % obj.pk: obj.homework_note})})
+
+                # print(data)
+            return render(request, 'score_list.html',
+                          {'data': data})
+
+        else:
+            data_dict = {}
+            for key, value in request.POST.items():
+                if key == "csrfmiddlewaretoken":
+                    continue
+                name, nid = key.rsplit('_', 1)
+                if nid in data_dict:
+                    data_dict[nid][name] = value
+                else:
+                    data_dict[nid] = {name: value}
+
+            for nid, update_dict in data_dict.items():
+                models.StudyRecord.objects.filter(id=nid).update(**update_dict)
+
+            return redirect('/stark/crm/courserecord/')
+
+    def kaoqin(self, obj=None, is_header=False):
+        if is_header:
+            return '考勤'
+
+        return mark_safe("<a href='/stark/crm/studyrecord/?course_record=%s'>考勤管理</a>" % obj.pk)
+
+    def display_score_list(self, obj=None, is_header=False):
+        if is_header:
+            return '成绩录入'
+        from django.urls import reverse
+        rurl = reverse("stark:crm_courserecord_score_list", args=(obj.pk,))
+        return mark_safe("<a href='%s'>成绩录入</a>" % rurl)
+
+    list_display = ['class_obj', 'day_num', kaoqin, display_score_list]
 
     def multi_init(self, request):
+        """
+        自定义执行批量初始化方法
+        :param request:
+        :return:
+        """
+        # 上课记录ID列表
         pk_list = request.POST.getlist('pk')
 
-    multi_init.short_desc = "初始化"
+        # 上课记录对象
+        record_list = models.CourseRecord.objects.filter(id__in=pk_list)
+        for record in record_list:
+            # day1,day2,day3
+            # record.class_obj # 关联的班级
+            exists = models.StudyRecord.objects.filter(course_record=record).exists()
+            if exists:
+                continue
 
-    actions = [multi_del, multi_init]
+            student_list = models.Student.objects.filter(class_list=record.class_obj)
+            bulk_list = []
+            for student in student_list:
+                # 为每一个学生创建dayn的学习记录
+                bulk_list.append(models.StudyRecord(student=student, course_record=record))
+            models.StudyRecord.objects.bulk_create(bulk_list)
+            # for record in record_list:
+            #     student_list = models.Student.objects.filter(class_list=record.class_obj)
+            #     bulk_list = []
+            #     for student in student_list:
+            #         # 为每一个学生创建dayn的学习记录
+            #         exists = models.StudyRecord.objects.filter(student=student,course_record=record).exists()
+            #         if exists:
+            #             continue
+            #         bulk_list.append(models.StudyRecord(student=student,course_record=record))
+            #     models.StudyRecord.objects.bulk_create(bulk_list)
 
-    list_display = ['class_obj','day_num','teacher','date','course_title']
-    edit_link = ['class_obj']
+            # return redirect('http://www.baidu.com')
+
+    multi_init.short_desc = "学生初始化"
+    actions = [multi_init, ]
+
+    show_actions = True
 
 
 router.site.register(models.CourseRecord, CourseRecordConfig)
 
 
 class StudyRecordConfig(router.StarkConfig):
-    list_display = ['course_record', ]
+    def display_record(self, obj=None, is_header=False):
+        if is_header:
+            return '出勤'
+        return obj.get_record_display()
+
+    list_display = ['course_record', 'student', display_record]
+
+    comb_filter = [
+        router.FilterOption('course_record')
+    ]
+
+    def action_checked(self, request):
+        pass
+
+    action_checked.short_desc = "签到"
+
+    def action_vacate(self, request):
+        pass
+
+    action_vacate.short_desc = "请假"
+
+    def action_late(self, request):
+        pass
+
+    action_late.short_desc = "迟到"
+
+    def action_noshow(self, request):
+        pk_list = request.POST.getlist('pk')
+        models.StudyRecord.objects.filter(id__in=pk_list).update(record='noshow')
+
+    action_noshow.short_desc = "缺勤"
+
+    def action_leave_early(self, request):
+        pass
+
+    action_leave_early.short_desc = "早退"
+
+    actions = [action_checked, action_vacate, action_late, action_noshow, action_leave_early]
+
+    show_actions = True
+
+    show_add_btn = False
     edit_link = ['course_record']
 
 
