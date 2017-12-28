@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>QQ</th>
+                <th>姓名</th>
+                <th>抢单</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in customer_list %}
+            <tr>
+                <td>{{ row.id }}</td>
+                <td>{{ row.qq }}</td>
+                <td>{{ row.name }}</td>
+                <td> <a href="/stark/crm/customer/{{ row.id }}/competition/">抢单</a> </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

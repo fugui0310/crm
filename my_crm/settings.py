@@ -124,3 +124,14 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR,'static'),
 )
+
+
+# ################## 自定义消息提醒的配置 ###################
+MESSAGE_CLASSES = [
+    'message.email.Email',
+    'message.msg.Msg',
+    'message.wx.WeChat',
+    'message.dingding.DingDing',
+]
+
+

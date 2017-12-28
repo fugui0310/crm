@@ -5,6 +5,14 @@
     <meta charset="UTF-8">
     <title>Title</title>
     <link rel="stylesheet" href="{% static "stark/bootstrap/css/bootstrap.css" %}"/>
+    <style>
+        li:hover {
+            color: #FF7500;
+            font-size: large;
+            font-family: 华文行楷;
+
+        }
+    </style>
 
 </head>
 <body>
@@ -19,15 +27,15 @@
         {% endfor %}
         <a class="btn btn-primary pull-right" style="width: 120px" href="/stark/crm/student/">返回</a>
     </ul>
-    <h3>成绩图</h3>
+    <h3>{{ class_list.0 }}{{ obj }}的成绩图</h3>
     <div id="container" style="width:600px;height:400px"></div>
-
 </div>
 
 <script src="{% static 'jquery-1.12.4.min.js' %}"></script>
 <script src="{% static 'highcharts.js' %}"></script>
 <script>
     $(function () {
+
         $('#classList li').click(function () {
             var cid = $(this).attr('cid');
             var sid = $("#classList").attr('sid');

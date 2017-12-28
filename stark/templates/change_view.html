@@ -1,13 +1,8 @@
-{% load staticfiles %}
+
+
+{% extends 'layout.html' %}
 {% load change_form %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-    <link rel="stylesheet" href="{% static "stark/bootstrap/css/bootstrap.css" %}"/>
-    <link rel="stylesheet" href="{% static "stark/css/stark-form.css" %}"/>
-    <style>
+ <style>
         #dic_item {
             float: left;
             padding-right: 20px;
@@ -20,11 +15,10 @@
 
 
     </style>
-</head>
-<body>
-<div class="container">
+{% block css %}
+
+{% endblock %}
+{% block body %}
     <h1>修改页面</h1>
-    {% form config form %}
-</div>
-</body>
-</html>
+    {% form config form  %}
+{% endblock %}

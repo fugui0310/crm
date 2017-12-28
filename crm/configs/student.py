@@ -21,10 +21,11 @@ class StudentConfig(router.StarkConfig):
 
     def scores_view(self,request,sid):
         obj = models.Student.objects.filter(id=sid).first()
+        # print(obj)
         if not obj:
             return HttpResponse('查无此人')
         class_list = obj.class_list.all()
-        return render(request,'scores_view.html',{'class_list':class_list,'sid':sid})
+        return render(request,'scores_view.html',{'class_list':class_list,'sid':sid,'obj':obj })
 
 
     def scores_chart(self,request):
@@ -33,14 +34,7 @@ class StudentConfig(router.StarkConfig):
             cid = request.GET.get('cid')
             sid = request.GET.get('sid')
             record_list = models.StudyRecord.objects.filter(student_id=sid,course_record__class_obj_id=cid).order_by('course_record_id')
-            data = [
-                # ['day1', 24.25],
-                # ['day2', 23.50],
-                # ['day3', 21.51],
-                # ['day4', 16.78],
-                # ['day5', 16.06],
-                # ['day6', 15.20]
-            ]
+            data = []
             for row in record_list:
                 day = "day%s" %row.course_record.day_num
                 data.append([day,row.score])
@@ -61,4 +55,4 @@ class StudentConfig(router.StarkConfig):
         return mark_safe("<a href='%s'>点击查看</a>" %surls)
 
     list_display = ['username','emergency_contract',display_scores]
-
+    edit_link = ['username']

@@ -1,0 +1,29 @@
+
+- 公共客户:是指刚录入的，上个顾问三天未沟通及十五天还未谈成的
+    ctime = datetime.datetime.now().date()
+    no_deal = ctime - datetime.timedelta(days=15)
+    no_follow = ctime - datetime.timedelta(days=3)
+    # models.Customer.objects.filter(Q(recv_date__lt=no_deal)|Q(last_consult_date__lt=no_follow),status=2).exclude(consultant_id=1)
+    customer_list = models.Customer.objects.filter(Q(recv_date__lt=no_deal)|Q(last_consult_date__lt=no_follow),status=2)
+- 私有客户：系统分配的和自己扩展的客户
+
+- 分配表：将公共客户按照课程顾问的权重和接受数量进行分配，权重由高到低进行循环分配，循环次数就是课程顾问所接受的最高数量
+
+- 抢单：http://127.0.0.1:8010/stark/crm/customer/public/
+    将公共客户由课程顾问自行接单（已和该客户沟通过的课程顾问除过）
+
+- 当前登录用户的所有客户：
+    根据session中获取当前登录用户ID（课程顾问）查看到当前他自己分配及抢到的客户
+
+- 单条录入客户信息：
+    根据Form的cleaned_data为客户表和客户分配表进行新增数据，其中cleaned_data中的course字段需要pop出来（多对多关系）然后
+    手动添加当前用户（课程顾问），创建时间（当前时间），其中运用with transaction.atomic():事务回滚
+    客户表新增数据：
+       - 获取该分配的课程顾问id
+       - 当前时间
+    客户分配表中新增数据
+       - 获取新创建的客户ID
+       - 顾问ID
+
+
+
