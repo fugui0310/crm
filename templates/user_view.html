@@ -1,14 +1,21 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
-    <ul>
-        {% for row in customers %}
-            <li>{{ row.customer.qq }} - {{ row.customer.name }} - </li>
+{% extends 'stark/layout.html' %}
+
+{% block body %}
+    <h1>我的客户</h1>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <td>QQ</td>
+                <td>姓名</td>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in customers %}
+                <tr>
+                    <td>{{ row.customer.qq }}</td>
+                    <td>{{ row.customer.name }}</td>
+                </tr>
         {% endfor %}
-    </ul>
-</body>
-</html>
+        </tbody>
+    </table>
+{% endblock %}

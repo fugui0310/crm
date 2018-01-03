@@ -234,7 +234,7 @@ class StarkConfig(object):
 
         ....
 
-    router.site.register(models.UserInfo,UserInfoConfig)
+    v1.site.register(models.UserInfo,UserInfoConfig)
     """
 
     # 1. 定制列表页面显示的列
@@ -356,6 +356,14 @@ class StarkConfig(object):
     def get_show_comb_filter(self):
         return self.show_comb_filter
 
+    # 7. 排序
+    order_by = []
+
+    def get_order_by(self):
+        result = []
+        result.extend(self.order_by)
+        return result
+
     def __init__(self, model_class, site):
         self.model_class = model_class
         self.site = site
@@ -438,11 +446,12 @@ class StarkConfig(object):
                 if option.field_name == key:
                     flag = True
                     break
+
             if flag:
                 comb_condition["%s__in" % key] = value_list
-        # print(comb_condition)
-        queryset = self.model_class.objects.filter(self.get_search_condition()).filter(**comb_condition).distinct()
-        # print(queryset.query)
+
+        queryset = self.model_class.objects.filter(self.get_search_condition()).filter(**comb_condition).order_by(
+            *self.get_order_by()).distinct()
 
         cl = ChangeList(self, queryset)
         return render(request, 'changelist.html', {'cl': cl})
@@ -510,7 +519,7 @@ class StarkConfig(object):
                 list_query_str = request.GET.get(self._query_param_key)
                 list_url = "%s?%s" % (self.get_list_url(), list_query_str,)
                 return redirect(list_url)
-            return render(request, 'change_view.html', {'form': form,'config': self})
+            return render(request, 'change_view.html', {'form': form, 'config': self})
 
     def delete_view(self, request, nid, *args, **kwargs):
         self.model_class.objects.filter(pk=nid).delete()
@@ -521,15 +530,15 @@ class StarkSite(object):
     def __init__(self):
         self._registry = {}
 
-    def register(self, model_class, stark_config_class=None):
+    def register(self,model_class,stark_config_class=None):
         if not stark_config_class:
             stark_config_class = StarkConfig
-        self._registry[model_class] = stark_config_class(model_class, self)
+        self._registry[model_class] = stark_config_class(model_class,self)
 
     def get_urls(self):
         url_pattern = []
 
-        for model_class, stark_config_obj in self._registry.items():
+        for model_class,stark_config_obj in self._registry.items():
             # 为每一个类，创建4个URL
             """
             {
@@ -544,14 +553,14 @@ class StarkSite(object):
             app_name = model_class._meta.app_label
             model_name = model_class._meta.model_name
 
-            curd_url = url(r'^%s/%s/' % (app_name, model_name,), (stark_config_obj.urls, None, None))
+            curd_url = url(r'^%s/%s/' %(app_name,model_name,) , (stark_config_obj.urls,None,None))
             url_pattern.append(curd_url)
+
 
         return url_pattern
 
     @property
     def urls(self):
-        return (self.get_urls(), None, 'stark')
-
+        return (self.get_urls(),None,'stark')
 
 site = StarkSite()
